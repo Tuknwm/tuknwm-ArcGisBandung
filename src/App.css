@@ -1959,6 +1959,8 @@
 .explorer--reveal { opacity: 1; }
 .explorer--reveal .side  { animation: slide-from-left  0.9s cubic-bezier(0.16,1,0.3,1) both; }
 .explorer--reveal .stage { animation: slide-from-right 0.9s cubic-bezier(0.16,1,0.3,1) both; }
+.explorer--instant { opacity: 1; }
+.explorer--instant .side, .explorer--instant .stage { animation: none; }
 .splash-img  { width: clamp(160px, 32vw, 340px); object-fit: contain; }
 .splash-name { width: clamp(200px, 40vw, 420px); object-fit: contain; }
 

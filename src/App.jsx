@@ -25,7 +25,8 @@ export default function App() {
   const [mapPickedPlace, setMapPickedPlace] = useState(null)
   const [resetSignal, setResetSignal] = useState(0)
   const [mapMoved, setMapMoved] = useState(false)
-  const [splashDone, setSplashDone] = useState(false)
+  const splashAlreadySeen = sessionStorage.getItem('splashSeen') === '1'
+  const [splashDone, setSplashDone] = useState(() => splashAlreadySeen)
   const deferredQuery = useDeferredValue(query)
 
   const results = useMemo(
@@ -59,9 +60,9 @@ export default function App() {
 
   return (
     <>
-    <SplashScreen onDone={() => setSplashDone(true)} />
+    {!splashDone && <SplashScreen onDone={() => { sessionStorage.setItem('splashSeen', '1'); setSplashDone(true) }} />}
     <main className="app">
-      <section className={`explorer${splashDone ? ' explorer--reveal' : ''}`} aria-labelledby="page-title">
+      <section className={`explorer${splashDone ? (splashAlreadySeen ? ' explorer--instant' : ' explorer--reveal') : ''}`} aria-labelledby="page-title">
         <div className="side">
           <div className="intro">
             <h1 id="page-title" className="intro-title">{t.title}</h1>
