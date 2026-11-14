@@ -13,6 +13,16 @@ import { useLang } from './lib/LangContext'
 import './App.css'
 
 const counts = places.reduce((acc, p) => ({ ...acc, [p.category]: (acc[p.category] || 0) + 1 }), {})
+const SPLASH_SESSION_KEY = 'splashSeen:v4'
+
+function MobileMaintenance() {
+  return (
+    <div className="mobile-maintenance">
+      <p className="mobile-maintenance-text">In Maintenance</p>
+      <p className="mobile-maintenance-sub">Only for mobile</p>
+    </div>
+  )
+}
 
 export default function App() {
   const { t, lang } = useLang()
@@ -25,7 +35,7 @@ export default function App() {
   const [mapPickedPlace, setMapPickedPlace] = useState(null)
   const [resetSignal, setResetSignal] = useState(0)
   const [mapMoved, setMapMoved] = useState(false)
-  const splashAlreadySeen = sessionStorage.getItem('splashSeen') === '1'
+  const [splashAlreadySeen] = useState(() => sessionStorage.getItem(SPLASH_SESSION_KEY) === '1')
   const [splashDone, setSplashDone] = useState(() => splashAlreadySeen)
   const deferredQuery = useDeferredValue(query)
 
@@ -58,9 +68,19 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [close])
 
+  useEffect(() => {
+    const shouldLockScroll = !!selected || compareOpen
+    if (!shouldLockScroll) return undefined
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousOverflow }
+  }, [selected, compareOpen])
+
   return (
     <>
-    {!splashDone && <SplashScreen onDone={() => { sessionStorage.setItem('splashSeen', '1'); setSplashDone(true) }} />}
+    <MobileMaintenance />
+    {!splashDone && <SplashScreen onDone={() => { sessionStorage.setItem(SPLASH_SESSION_KEY, '1'); setSplashDone(true) }} />}
     <main className="app">
       <section className={`explorer${splashDone ? (splashAlreadySeen ? ' explorer--instant' : ' explorer--reveal') : ''}`} aria-labelledby="page-title">
         <div className="side">

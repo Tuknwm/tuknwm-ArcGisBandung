@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { CATEGORIES, formatRupiah } from '../lib/places'
 import { useLang } from '../lib/LangContext'
 import CategoryIcon from './CategoryIcon'
@@ -31,12 +31,41 @@ function Stars({ value }) {
 export default function DetailPanel({ place, onClose }) {
   const { t } = useLang()
   const [closing, setClosing] = useState(false)
+  const [dragY, setDragY] = useState(0)
+  const touchStartY = useRef(null)
+  const dragging = useRef(false)
   useEffect(() => { setClosing(false) }, [place])
+  useEffect(() => { setDragY(0) }, [place])
   if (!place) return null
 
   function handleClose() {
+    if (closing) return
     setClosing(true)
     setTimeout(onClose, 320)
+  }
+
+  function handleTouchStart(e) {
+    if (closing) return
+    touchStartY.current = e.touches[0].clientY
+    dragging.current = false
+  }
+
+  function handleTouchMove(e) {
+    if (touchStartY.current == null || closing) return
+    const delta = e.touches[0].clientY - touchStartY.current
+    if (delta <= 0) return
+    dragging.current = true
+    setDragY(delta)
+    e.preventDefault()
+  }
+
+  function handleTouchEnd() {
+    if (touchStartY.current == null) return
+    const shouldClose = dragY > 100
+    touchStartY.current = null
+    dragging.current = false
+    if (shouldClose) handleClose()
+    else setDragY(0)
   }
 
   const cat = CATEGORIES[place.category]
@@ -44,8 +73,8 @@ export default function DetailPanel({ place, onClose }) {
   const route = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name + ', ' + place.address)}`
 
   return (
-    <aside className={`detail${closing ? ' is-closing' : ''}`} key={place.id} aria-labelledby="detail-title" style={{ '--c': cat.color }}>
-      <header className="detail-head">
+    <aside className={`detail${closing ? ' is-closing' : ''}${dragging.current ? ' is-dragging' : ''}`} key={place.id} aria-labelledby="detail-title" style={{ '--c': cat.color, '--drag-y': `${dragY}px` }}>
+      <header className="detail-head" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchEnd}>
         <button type="button" className="icon-btn" onClick={handleClose} aria-label={t.detailClose}>
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M6 6l12 12M18 6 6 18" />

@@ -1,3 +1,33 @@
+.mobile-maintenance {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .mobile-maintenance {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #fff;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-maintenance-text {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    letter-spacing: 0.01em;
+  }
+
+  .mobile-maintenance-sub {
+    font-size: 13px;
+    color: #888;
+    margin-top: 6px;
+  }
+}
+
 .explorer {
   display: grid;
   grid-template-columns: minmax(340px, 400px) 1fr;
@@ -567,6 +597,7 @@
   border-radius: var(--radius) 0 0 var(--radius);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
+  overscroll-behavior: contain;
   animation: slide-in 0.45s var(--ease) both;
 }
 
@@ -595,6 +626,7 @@
 .compare-panel-body {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 16px 20px 20px;
   display: flex;
   flex-direction: column;
@@ -640,12 +672,14 @@
 /* mobile: same as .detail bottom sheet */
 @media (max-width: 960px) {
   .compare-panel {
+    position: fixed;
     top: auto;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    width: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
     max-height: 72%;
+    border-radius: 22px 22px 0 0;
     animation-name: sheet-up;
   }
 
@@ -1957,8 +1991,16 @@
 }
 .explorer { opacity: 0; overflow: hidden; }
 .explorer--reveal { opacity: 1; }
-.explorer--reveal .side  { animation: slide-from-left  0.9s cubic-bezier(0.16,1,0.3,1) both; }
-.explorer--reveal .stage { animation: slide-from-right 0.9s cubic-bezier(0.16,1,0.3,1) both; }
+.explorer--reveal .side  {
+  animation: slide-from-left 0.9s cubic-bezier(0.16,1,0.3,1) both !important;
+  animation-duration: 0.9s !important;
+  animation-delay: 0s !important;
+}
+.explorer--reveal .stage {
+  animation: slide-from-right 0.9s cubic-bezier(0.16,1,0.3,1) both !important;
+  animation-duration: 0.9s !important;
+  animation-delay: 0s !important;
+}
 .explorer--instant { opacity: 1; }
 .explorer--instant .side, .explorer--instant .stage { animation: none; }
 .splash-img  { width: clamp(160px, 32vw, 340px); object-fit: contain; }
@@ -1978,6 +2020,7 @@
   border-radius: var(--radius) 0 0 var(--radius);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
+  overscroll-behavior: contain;
   animation: slide-in 0.45s var(--ease) both;
 }
 
@@ -1995,6 +2038,11 @@
   justify-content: flex-end;
   padding: 16px 20px 14px;
   border-bottom: 1px solid var(--line);
+}
+
+.detail.is-dragging {
+  transform: translateY(var(--drag-y));
+  animation: none;
 }
 
 
@@ -2053,6 +2101,7 @@
 .detail-body {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 16px 20px 20px;
 }
 
@@ -2310,8 +2359,22 @@
   to { opacity: 0; transform: translateX(32px); }
 }
 
+@keyframes sheet-down {
+  to { opacity: 0; transform: translateY(100%); }
+}
+
 .is-closing {
   animation: slide-out 0.35s var(--ease) both !important;
+}
+
+@media (max-width: 960px) {
+  .detail.is-closing {
+    animation: sheet-down 0.35s var(--ease) both !important;
+  }
+
+  .detail-head {
+    touch-action: none;
+  }
 }
 
 @keyframes rise {
@@ -2382,12 +2445,14 @@
   }
 
   .detail {
+    position: fixed;
     top: auto;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    width: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
     max-height: 68%;
+    border-radius: 22px 22px 0 0;
     animation-name: sheet-up;
   }
 
