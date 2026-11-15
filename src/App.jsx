@@ -8,6 +8,7 @@ import CategoryIcon from './components/CategoryIcon'
 import { RankingButton, RankingPanel } from './components/RankingPanel'
 import Scenery from './components/Scenery'
 import WeatherWidget from './components/WeatherWidget'
+import MobileApp from './components/MobileApp'
 import { CATEGORIES, boundary, matches, places } from './lib/places'
 import { useLang } from './lib/LangContext'
 import './App.css'
@@ -15,16 +16,8 @@ import './App.css'
 const counts = places.reduce((acc, p) => ({ ...acc, [p.category]: (acc[p.category] || 0) + 1 }), {})
 const SPLASH_SESSION_KEY = 'splashSeen:v4'
 
-function MobileMaintenance() {
-  return (
-    <div className="mobile-maintenance">
-      <p className="mobile-maintenance-text">In Maintenance</p>
-      <p className="mobile-maintenance-sub">Only for mobile</p>
-    </div>
-  )
-}
-
 export default function App() {
+  const isMobile = window.matchMedia('(max-width: 960px)').matches
   const { t, lang } = useLang()
   const [query, setQuery] = useState('')
   const [activeCats, setActiveCats] = useState(() => new Set(Object.keys(CATEGORIES)))
@@ -37,6 +30,7 @@ export default function App() {
   const [mapMoved, setMapMoved] = useState(false)
   const [splashAlreadySeen] = useState(() => sessionStorage.getItem(SPLASH_SESSION_KEY) === '1')
   const [splashDone, setSplashDone] = useState(() => splashAlreadySeen)
+  const [splashVisible, setSplashVisible] = useState(() => !splashAlreadySeen)
   const deferredQuery = useDeferredValue(query)
 
   const results = useMemo(
@@ -77,10 +71,17 @@ export default function App() {
     return () => { document.body.style.overflow = previousOverflow }
   }, [selected, compareOpen])
 
+  useEffect(() => {
+    if (!splashDone || splashAlreadySeen) return undefined
+    const timer = setTimeout(() => setSplashVisible(false), 950)
+    return () => clearTimeout(timer)
+  }, [splashDone, splashAlreadySeen])
+
+  if (isMobile) return <MobileApp />
+
   return (
     <>
-    <MobileMaintenance />
-    {!splashDone && <SplashScreen onDone={() => { sessionStorage.setItem(SPLASH_SESSION_KEY, '1'); setSplashDone(true) }} />}
+    {splashVisible && <SplashScreen onDone={() => { sessionStorage.setItem(SPLASH_SESSION_KEY, '1'); setSplashDone(true) }} />}
     <main className="app">
       <section className={`explorer${splashDone ? (splashAlreadySeen ? ' explorer--instant' : ' explorer--reveal') : ''}`} aria-labelledby="page-title">
         <div className="side">

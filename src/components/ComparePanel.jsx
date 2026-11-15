@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { matches, CATEGORIES, formatRupiah } from '../lib/places'
 import CategoryIcon from './CategoryIcon'
 import { saw } from '../lib/saw'
 import { computeWeights } from '../lib/weights'
-import WeightEditor, { WeightPopout } from './WeightEditor'
+import WeightEditor, { WeightPopout, WeightRows } from './WeightEditor'
 import { useLang } from '../lib/LangContext'
 
-function PlacePicker({ label, slot, place, places, onPick, onClear, pickingSlot, onStartPick }) {
+function PlacePicker({ label, placeholder, slot, place, places, onPick, onClear, pickingSlot, onStartPick, t }) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
   const [cursor, setCursor] = useState(-1)
@@ -33,7 +33,7 @@ function PlacePicker({ label, slot, place, places, onPick, onClear, pickingSlot,
         <span className="cpick-slot">{slot}</span>
         <CategoryIcon category={place.category} size={14} />
         <span className="cpick-name">{place.name}</span>
-        <button className="cpick-clear" onClick={onClear} aria-label="Hapus pilihan">×</button>
+        <button className="cpick-clear" onClick={onClear} aria-label={t?.close ?? 'Close'}>×</button>
       </div>
     )
   }
@@ -44,7 +44,7 @@ function PlacePicker({ label, slot, place, places, onPick, onClear, pickingSlot,
       <div className="cpick-search">
         <input
           type="search"
-          placeholder={isPickingThis ? 'Klik titik di peta…' : `Ketik ${label}…`}
+          placeholder={isPickingThis ? (t?.pickFromMap ?? 'Click a pin on the map…') : (placeholder ?? label)}
           value={q}
           onChange={(e) => { setQ(e.target.value); setOpen(true) }}
           onFocus={() => setOpen(true)}
@@ -73,7 +73,7 @@ function PlacePicker({ label, slot, place, places, onPick, onClear, pickingSlot,
       </div>
       <button
         className={`cpick-map-btn${isPickingThis ? ' is-active' : ''}`}
-        title={isPickingThis ? 'Batalkan pilih dari peta' : 'Pilih dari peta'}
+        title={isPickingThis ? (t?.cancelPickFromMap ?? 'Cancel pick from map') : (t?.pickFromMapBtn ?? 'Pick from map')}
         onClick={() => onStartPick(isPickingThis ? null : slot)}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -104,16 +104,66 @@ export function CompareButton({ onClick, active, label }) {
   )
 }
 
-export function CompareSidePanel({ places, onClose, pickingSlot, onStartPick, mapPickedPlace, onMapPickConsumed }) {
+export function CompareSidePanel({ hidden, places, onClose, pickingSlot, onStartPick, mapPickedPlace, onMapPickConsumed, isMobile }) {
   const { t } = useLang()
   const [placeA, setPlaceA] = useState(null)
   const [placeB, setPlaceB] = useState(null)
   const [manualW, setManualW] = useState({})
   const [closing, setClosing] = useState(false)
+  const [dragY, setDragY] = useState(0)
+  const [loaded, setLoaded] = useState(false)
+  const [priorityOpen, setPriorityOpen] = useState(false)
+  const [priorityClosing, setPriorityClosing] = useState(false)
+  const [priorityDragY, setPriorityDragY] = useState(0)
+  const isDragging = useRef(false)
+  const touchStartY = useRef(0)
+  const priorityIsDragging = useRef(false)
+  const priorityTouchStartY = useRef(0)
+  const panelRef = useRef(null)
+
+  function openPriority() { setPriorityOpen(true); setPriorityClosing(false); setPriorityDragY(0) }
+  function closePriority() {
+    setPriorityClosing(true)
+    setPriorityDragY(0)
+    setTimeout(() => { setPriorityOpen(false); setPriorityClosing(false) }, 360)
+  }
+  function handlePriorityTouchStart(e) {
+    priorityTouchStartY.current = e.touches[0].clientY
+    priorityIsDragging.current = true
+  }
+  function handlePriorityTouchMove(e) {
+    const delta = e.touches[0].clientY - priorityTouchStartY.current
+    if (delta > 0) { setPriorityDragY(delta); e.preventDefault() }
+  }
+  function handlePriorityTouchEnd() {
+    priorityIsDragging.current = false
+    if (priorityDragY > 80) closePriority()
+    else setPriorityDragY(0)
+  }
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setLoaded(true))
+    return () => cancelAnimationFrame(id)
+  }, [])
 
   function handleClose() {
+    if (closing) return
     setClosing(true)
-    setTimeout(onClose, 320)
+    setTimeout(onClose, 360)
+  }
+
+  function handleTouchStart(e) {
+    touchStartY.current = e.touches[0].clientY
+    isDragging.current = true
+  }
+  function handleTouchMove(e) {
+    const delta = e.touches[0].clientY - touchStartY.current
+    if (delta > 0) { setDragY(delta); e.preventDefault() }
+  }
+  function handleTouchEnd() {
+    isDragging.current = false
+    if (dragY > 80) handleClose()
+    else setDragY(0)
   }
 
   useEffect(() => {
@@ -132,92 +182,148 @@ export function CompareSidePanel({ places, onClose, pickingSlot, onStartPick, ma
 
   return (
     <>
-    <WeightPopout manualW={manualW} onManualW={setManualW} labelMap={labelMap} t={t} />
-    <aside className={`compare-panel${closing ? ' is-closing' : ''}`} aria-label="Bandingkan Destinasi">
-      <div className="detail-grip" aria-hidden="true" />
+    {isMobile && loaded && !hidden && priorityOpen && (
+      <div
+        className={`mobile-priority-sheet${priorityClosing ? ' is-closing' : ''}`}
+        style={priorityDragY > 0 || priorityIsDragging.current ? { transform: `translateY(${priorityDragY}px)`, transition: priorityIsDragging.current ? 'none' : 'transform 0.4s cubic-bezier(0.32,0.72,0,1)' } : undefined}
+      >
+        <div
+          className="mobile-sheet-grip"
+          onTouchStart={handlePriorityTouchStart}
+          onTouchMove={handlePriorityTouchMove}
+          onTouchEnd={handlePriorityTouchEnd}
+          onTouchCancel={handlePriorityTouchEnd}
+          style={{ touchAction: 'none', cursor: 'grab' }}
+        />
+        <div className="mobile-sheet-head">
+          <span className="mobile-sheet-title">{t.sawPriorityLabel ?? 'Priority Criteria'}</span>
+          <button className="icon-btn" onClick={closePriority} aria-label={t.close}>
+            <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="mobile-priority-body">
+          <WeightEditor manualW={manualW} onManualW={setManualW} labelMap={labelMap} t={t} />
+          <WeightRows manualW={manualW} onManualW={setManualW} labelMap={labelMap} t={t} />
+        </div>
+      </div>
+    )}
+    <aside
+      ref={panelRef}
+      className={`compare-panel${closing ? ' is-closing' : ''}`}
+      aria-label="Bandingkan Destinasi"
+      style={{
+        ...(hidden ? { display: 'none' } : {}),
+        ...(dragY > 0 || isDragging.current ? { transform: `translateY(${dragY}px)`, transition: isDragging.current ? 'none' : 'transform 0.4s cubic-bezier(0.32,0.72,0,1)' } : {}),
+      }}
+    >
+      <div
+        className="detail-grip"
+        aria-hidden="true"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+        style={{ touchAction: 'none', cursor: 'grab' }}
+      />
 
       <header className="compare-panel-head">
         <span className="compare-panel-title">{t.compareTitle}</span>
-        <button type="button" className="icon-btn" onClick={handleClose} aria-label="Tutup">
+        <button type="button" className="icon-btn" onClick={handleClose} aria-label={t.close}>
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M6 6l12 12M18 6 6 18" />
           </svg>
         </button>
       </header>
 
-      <div className="compare-panel-body">
-        <div className="cmodal-pickers">
-          <span className="compare-vs">{t.comparePick}</span>
-          <PlacePicker slot="A" label="Destinasi A" place={placeA} places={places}
-            onPick={setPlaceA} onClear={() => setPlaceA(null)}
-            pickingSlot={pickingSlot} onStartPick={onStartPick} />
-          <span className="compare-vs">{t.compareWith}</span>
-          <PlacePicker slot="B" label="Destinasi B" place={placeB} places={places}
-            onPick={setPlaceB} onClear={() => setPlaceB(null)}
-            pickingSlot={pickingSlot} onStartPick={onStartPick} />
-        </div>
-
-        <WeightEditor manualW={manualW} onManualW={setManualW} labelMap={labelMap} t={t} />
-
-        <p className="compare-result-label">{t.compareResult}</p>
-
-        {isOver && (
-          <p className="cpriority-over-warn">{t.sawOverWarn ?? 'Total bobot melebihi 100% — sesuaikan nilai.'}</p>
-        )}
-
-        {result && (
-          <div className="compare-result">
-            <div className="compare-scores">
-              <div className={`cscore ${winner === 'A' ? 'cscore--win' : ''}`}>
-                <strong>{(result.scoreA * 100).toFixed(1)}</strong>
-                <span>{placeA.name}</span>
-              </div>
-              <div className="cscore-divider" />
-              <div className={`cscore ${winner === 'B' ? 'cscore--win' : ''}`}>
-                <strong>{(result.scoreB * 100).toFixed(1)}</strong>
-                <span>{placeB.name}</span>
-              </div>
-            </div>
-
-            <div className="csaw-legend">
-              <span><span className="csaw-legend-bar csaw-legend-bar--a" />{t.sawLegendA}</span>
-              <span><span className="csaw-legend-bar csaw-legend-bar--b" />{t.sawLegendB}</span>
-              <span className="csaw-legend-hint">{t.sawLegendHint}</span>
-            </div>
-            <table className="csaw-table">
-              <thead>
-                <tr>
-                  <th>Kriteria</th>
-                  <th>Bobot</th>
-                  <th>A</th>
-                  <th>B</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.breakdown.map(({ key, weight, valA, valB, nA, nB }) => {
-                  const labelMap = { rating: t.sawRating, facility: t.sawFacility, access: t.sawAccess, distance: t.sawDistance, price: t.sawPrice }
-                  return (
-                  <tr key={key}>
-                    <td>{labelMap[key]}</td>
-                    <td>{(weight * 100).toFixed(0)}%</td>
-                    <td className={nA > nB ? 'csaw-win' : ''}>
-                      <span className="csaw-raw">{fmtVal(key, valA)}</span>
-                      <Bar nA={nA} nB={nB} />
-                    </td>
-                    <td className={nB > nA ? 'csaw-win' : ''}>
-                      <span className="csaw-raw">{fmtVal(key, valB)}</span>
-                    </td>
-                  </tr>
-                )})}
-              </tbody>
-            </table>
+      {loaded && (
+        <div className="compare-panel-body">
+          <div className="cmodal-pickers">
+            <span className="compare-vs">{t.comparePick}</span>
+            <PlacePicker slot="A" label={t.destA} placeholder={t.typeDestA} place={placeA} places={places}
+              onPick={setPlaceA} onClear={() => setPlaceA(null)}
+              pickingSlot={pickingSlot} onStartPick={onStartPick} t={t} />
+            <span className="compare-vs">{t.compareWith}</span>
+            <PlacePicker slot="B" label={t.destB} placeholder={t.typeDestB} place={placeB} places={places}
+              onPick={setPlaceB} onClear={() => setPlaceB(null)}
+              pickingSlot={pickingSlot} onStartPick={onStartPick} t={t} />
           </div>
-        )}
-      </div>
+
+          {isMobile ? (
+            <button className="mobile-priority-btn" onClick={openPriority}>
+              <span>{t.sawPriorityLabel ?? 'Priority Criteria'}</span>
+              {Object.keys(manualW).length > 0 && (
+                <span className="mobile-priority-badge">{Object.keys(manualW).length}</span>
+              )}
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          ) : (
+            <WeightEditor manualW={manualW} onManualW={setManualW} labelMap={labelMap} t={t} />
+          )}
+
+          <p className="compare-result-label">{t.compareResult}</p>
+
+          {isOver && (
+            <p className="cpriority-over-warn">{t.sawOverWarn ?? 'Total bobot melebihi 100% — sesuaikan nilai.'}</p>
+          )}
+
+          {result && (
+            <div className="compare-result">
+              <div className="compare-scores">
+                <div className={`cscore ${winner === 'A' ? 'cscore--win' : ''}`}>
+                  <strong>{(result.scoreA * 100).toFixed(1)}</strong>
+                  <span>{placeA.name}</span>
+                </div>
+                <div className="cscore-divider" />
+                <div className={`cscore ${winner === 'B' ? 'cscore--win' : ''}`}>
+                  <strong>{(result.scoreB * 100).toFixed(1)}</strong>
+                  <span>{placeB.name}</span>
+                </div>
+              </div>
+
+              <div className="csaw-legend">
+                <span><span className="csaw-legend-bar csaw-legend-bar--a" />{t.sawLegendA}</span>
+                <span><span className="csaw-legend-bar csaw-legend-bar--b" />{t.sawLegendB}</span>
+                <span className="csaw-legend-hint">{t.sawLegendHint}</span>
+              </div>
+              <table className="csaw-table">
+                <thead>
+                  <tr>
+                    <th>Kriteria</th>
+                    <th>Bobot</th>
+                    <th>A</th>
+                    <th>B</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.breakdown.map(({ key, weight, valA, valB, nA, nB }) => {
+                    const labelMap = { rating: t.sawRating, facility: t.sawFacility, access: t.sawAccess, distance: t.sawDistance, price: t.sawPrice }
+                    return (
+                    <tr key={key}>
+                      <td>{labelMap[key]}</td>
+                      <td>{(weight * 100).toFixed(0)}%</td>
+                      <td className={nA > nB ? 'csaw-win' : ''}>
+                        <span className="csaw-raw">{fmtVal(key, valA)}</span>
+                        <Bar nA={nA} nB={nB} />
+                      </td>
+                      <td className={nB > nA ? 'csaw-win' : ''}>
+                        <span className="csaw-raw">{fmtVal(key, valB)}</span>
+                      </td>
+                    </tr>
+                  )})}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       <footer className="compare-panel-foot">
         <p className="cmodal-hint">{t.compareHint}</p>
       </footer>
     </aside>
+    {!isMobile && (
+      <WeightPopout manualW={manualW} onManualW={setManualW} labelMap={labelMap} t={t} anchorRef={panelRef} />
+    )}
     </>
   )
 }

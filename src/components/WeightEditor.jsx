@@ -1,3 +1,5 @@
+import { createPortal } from 'react-dom'
+import { useEffect, useRef, useState } from 'react'
 import { WEIGHT_KEYS, autoPercent } from '../lib/weights'
 
 export const ICONS = {
@@ -37,7 +39,7 @@ export default function WeightEditor({ manualW, onManualW, labelMap, t, extraCla
   )
 }
 
-export function WeightPopout({ manualW, onManualW, labelMap, t }) {
+export function WeightRows({ manualW, onManualW, labelMap, t = {} }) {
   const hasManual = Object.keys(manualW).length > 0
   if (!hasManual) return null
 
@@ -58,7 +60,85 @@ export function WeightPopout({ manualW, onManualW, labelMap, t }) {
   }
 
   return (
-    <div className="weight-popout">
+    <div className="cpriority-rows">
+      {WEIGHT_KEYS.map(key => {
+        const isManual = key in manualW
+        const pct = isManual ? manualW[key] : autoPercent(key, manualW)
+        return (
+          <div key={key} className={`cpriority-row${isManual ? ' cpriority-row--manual' : ''}`}>
+            <span className="cpriority-row-label">
+              {ICONS[key]}
+              {labelMap[key]}
+            </span>
+            <div className="cpriority-row-right">
+              {isManual ? (
+                <div className="cpriority-input-wrap">
+                  <input type="number" min="1" max="99" value={manualW[key]}
+                    onFocus={e => e.target.select()}
+                    onChange={e => setVal(key, e.target.value)} />
+                  <span>%</span>
+                </div>
+              ) : (
+                <span className="cpriority-auto-val">{pct}%</span>
+              )}
+              <div className="cpriority-bar-track">
+                <div className={`cpriority-bar-fill${isManual ? ' cpriority-bar-fill--manual' : ''}`}
+                  style={{ width: `${Math.min(100, pct)}%` }} />
+              </div>
+            </div>
+          </div>
+        )
+      })}
+      <div className={`cpriority-total${isOver ? ' cpriority-total--over' : ''}`}>
+        <span>{t.weightManual ?? 'Manual'}: <strong>{manualTotal}%</strong></span>
+        <span>{t.weightAuto ?? 'Auto'}: <strong>{remaining}%</strong></span>
+        <span>{t.weightTotal ?? 'Total'}: <strong>100%</strong></span>
+      </div>
+    </div>
+  )
+}
+
+export function WeightPopout({ manualW, onManualW, labelMap, t = {}, anchorRef }) {
+  const hasManual = Object.keys(manualW).length > 0
+  const [rect, setRect] = useState(null)
+
+  useEffect(() => {
+    if (!hasManual || !anchorRef?.current) return
+    function update() {
+      const r = anchorRef.current?.getBoundingClientRect()
+      if (r) setRect(r)
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [hasManual, anchorRef])
+
+  if (!hasManual) return null
+
+  const manualTotal = WEIGHT_KEYS.reduce((s, k) => s + (manualW[k] ?? 0), 0)
+  const remaining   = Math.max(0, 100 - manualTotal)
+  const isOver      = manualTotal > 100
+
+  function toggle(key) {
+    const next = { ...manualW }
+    if (key in next) { delete next[key] }
+    else { next[key] = autoPercent(key, manualW) }
+    onManualW(next)
+  }
+
+  function setVal(key, raw) {
+    const num = Math.min(99, Math.max(1, parseInt(raw) || 1))
+    onManualW({ ...manualW, [key]: num })
+  }
+
+  const style = anchorRef ? (rect ? {
+    position: 'fixed',
+    top: rect.top,
+    right: window.innerWidth - rect.left + 10,
+  } : { display: 'none' }) : {}
+
+  const content = (
+    <div className="weight-popout" style={style}>
       <div className="weight-popout-head">
         <span>{t.sawPriorityLabel}</span>
         <button
@@ -110,11 +190,13 @@ export function WeightPopout({ manualW, onManualW, labelMap, t }) {
           )
         })}
         <div className={`cpriority-total${isOver ? ' cpriority-total--over' : ''}`}>
-          <span>Manual: <strong>{manualTotal}%</strong></span>
-          <span>Auto: <strong>{remaining}%</strong></span>
-          <span>Total: <strong>100%</strong></span>
+          <span>{t.weightManual ?? 'Manual'}: <strong>{manualTotal}%</strong></span>
+          <span>{t.weightAuto ?? 'Auto'}: <strong>{remaining}%</strong></span>
+          <span>{t.weightTotal ?? 'Total'}: <strong>100%</strong></span>
         </div>
       </div>
     </div>
   )
+
+  return anchorRef ? createPortal(content, document.body) : content
 }

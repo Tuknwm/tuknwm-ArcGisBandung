@@ -61,7 +61,7 @@ export default function DetailPanel({ place, onClose }) {
 
   function handleTouchEnd() {
     if (touchStartY.current == null) return
-    const shouldClose = dragY > 100
+    const shouldClose = dragY > 80
     touchStartY.current = null
     dragging.current = false
     if (shouldClose) handleClose()
@@ -73,7 +73,16 @@ export default function DetailPanel({ place, onClose }) {
   const route = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name + ', ' + place.address)}`
 
   return (
-    <aside className={`detail${closing ? ' is-closing' : ''}${dragging.current ? ' is-dragging' : ''}`} key={place.id} aria-labelledby="detail-title" style={{ '--c': cat.color, '--drag-y': `${dragY}px` }}>
+    <aside
+      className={`detail${closing ? ' is-closing' : ''}`}
+      key={place.id}
+      aria-labelledby="detail-title"
+      style={{
+        '--c': cat.color,
+        transform: `translateY(${dragY}px)`,
+        transition: dragging.current ? 'none' : 'transform 0.4s cubic-bezier(0.32,0.72,0,1)',
+      }}
+    >
       <header className="detail-head" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchEnd}>
         <button type="button" className="icon-btn" onClick={handleClose} aria-label={t.detailClose}>
           <svg viewBox="0 0 24 24" aria-hidden="true">

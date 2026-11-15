@@ -1,32 +1,3 @@
-.mobile-maintenance {
-  display: none;
-}
-
-@media (max-width: 960px) {
-  .mobile-maintenance {
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    background: #fff;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .mobile-maintenance-text {
-    font-size: 18px;
-    font-weight: 600;
-    color: #333;
-    letter-spacing: 0.01em;
-  }
-
-  .mobile-maintenance-sub {
-    font-size: 13px;
-    color: #888;
-    margin-top: 6px;
-  }
-}
 
 .explorer {
   display: grid;
@@ -495,10 +466,8 @@
 
 /* weight popout — floats to the left of compare/ranking panel */
 .weight-popout {
-  position: absolute;
-  top: 16px;
-  right: calc(16px + min(380px, calc(100% - 32px)) + 10px);
-  z-index: 599;
+  position: fixed;
+  z-index: 1200;
   width: 240px;
   background: var(--card);
   border: 1px solid var(--line);
@@ -2025,6 +1994,7 @@
 }
 
 .detail-grip {
+  display: none;
   width: 36px;
   height: 4px;
   border-radius: 2px;
@@ -2040,10 +2010,7 @@
   border-bottom: 1px solid var(--line);
 }
 
-.detail.is-dragging {
-  transform: translateY(var(--drag-y));
-  animation: none;
-}
+
 
 
 .detail-tags {
